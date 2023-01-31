@@ -1,0 +1,141 @@
+##### Set directory and load extracted data
+setwd("/Users/ju0/Desktop/Projects/Devices-General/DBH-Camera-Dev/dbh_images/images/")
+mydata <- read.csv("DBHImageExtraction_185kVect977Elements-2023-01-18.csv")
+mydata[1:5,1:8]
+
+mydata <- cbind(paste(mydata[,2], "-", mydata[,3], sep = ""), mydata)
+colnames(mydata)[1] <- "tmpSort"
+mydata <- mydata[order(mydata[,2], decreasing = T), ]
+dim(mydata)
+mydata <- mydata[!duplicated(mydata$tmpSort), ]
+mydata <- mydata[,-1]
+mydata[1:5,1:8]
+dim(mydata)
+
+##### Set random seed and then split the data for testing and training.
+set.seed(5)
+data.nms <- mydata[!duplicated(mydata[,2]),2]
+data.nms <- data.nms[sample(length(data.nms), size = length(data.nms), replace = F)]
+length(data.nms)
+
+##### Slit names list into two distinct sets of samples
+data.nms.1 <- data.nms[1:round(length(data.nms)*0.5)]
+data.nms.2 <- data.nms[(round(length(data.nms)*0.5)+1):(length(data.nms))]
+length(data.nms.1)
+length(data.nms.2)
+
+##### Create training set data
+mydata.nms.1 <- mydata[complete.cases(!match(mydata[,2], data.nms.1)), ]
+dim(mydata.nms.1)
+mydata.nms.1[1:3,1:8]
+mydata[1:3,1:8]
+dim(mydata.nms.1)
+mydata.1 <- mydata.nms.1
+
+##### Format data to run through Keras
+mydata.nms.1 <- paste(mydata.1[,2], mydata.1[,3], sep = "_")
+mydata.nms.1 <- cbind(mydata.nms.1, mydata.1)
+mydata.nms.1[1:5,1:8]
+mydata.nms.1 <- mydata.nms.1[!duplicated(mydata.nms.1[,1]), ]
+rownames(mydata.nms.1) <- mydata.nms.1[,1]
+mydata.nms.1 <- mydata.nms.1[,-1]
+range(mydata.1[,1])
+mydata.nms.1 <- mydata.nms.1[,-(2:5)]
+mydata.nms.1[1:5,1:8]
+set.seed(358)
+mydata.nms.1 <- mydata.nms.1[sample(nrow(mydata.nms.1), size = nrow(mydata.nms.1), replace = F), ]
+dim(mydata.nms.1)
+plot(mydata.nms.1[1:100,1])
+str(mydata.nms.1)
+data.1 <- mydata.nms.1
+str(data.1)
+data.1[1:3,1:8]
+
+
+##### Create testing/prediction data
+mydata.nms.2 <- mydata[complete.cases(!match(mydata[,2], data.nms.2)), ]
+dim(mydata.nms.2)
+mydata.nms.2[1:3,1:8]
+dim(mydata.nms.2)
+mydata.2 <- mydata.nms.2
+
+##### Format data to run through Keras
+mydata.nms.2 <- paste(mydata.2[,2], mydata.2[,3], sep = "_")
+mydata.nms.2 <- cbind(mydata.nms.2, mydata.2)
+mydata.nms.2[1:5,1:8]
+mydata.nms.2 <- mydata.nms.2[!duplicated(mydata.nms.2[,1]), ]
+rownames(mydata.nms.2) <- mydata.nms.2[,1]
+mydata.nms.2 <- mydata.nms.2[,-1]
+range(mydata.2[,1])
+mydata.nms.2 <- mydata.nms.2[,-(2:5)]
+mydata.nms.2[1:5,1:8]
+set.seed(13)
+mydata.nms.2 <- mydata.nms.2[sample(nrow(mydata.nms.2), size = nrow(mydata.nms.2), replace = F), ]
+dim(mydata.nms.2)
+plot(mydata.nms.2[1:100,1])
+str(mydata.nms.2)
+data.2 <- mydata.nms.2
+data.2[1:3,1:8]
+str(data.2)
+
+##### Check dimensions and formats of data.1 and data.2
+data.1[1:3,1:8]
+data.2[1:3,1:8]
+dim(data.1)
+dim(data.2)
+
+pythonCNN <- rbind(data.1, data.2)
+write.csv(pythonCNN, file = "mytransformerdata.csv", quote = F, col.names = F)
+
+
+##### Change names back to standard names
+data.1.names <- rownames(data.1)
+data.1.names <- gsub("mirror_", "mirror-", data.1.names)
+data.2.names <- rownames(data.2)
+data.2.names <- gsub("mirror_", "mirror-", data.2.names)
+rownames(data.1) <- data.1.names
+rownames(data.2) <- data.2.names
+
+##### Check that all names do not match between data sets, output of match should be all NAs
+data.rw.nms.1 <- t(matrix(unlist(strsplit(rownames(data.1), split = "_")), nrow = 5))
+data.rw.nms.2 <- t(matrix(unlist(strsplit(rownames(data.2), split = "_")), nrow = 5))
+match(unique(data.rw.nms.1[,1]), unique(data.rw.nms.2[,1]))
+
+
+################################################################################
+########################### Load the required libraries ########################
+################################################################################
+
+library(keras)
+
+# Load the training data from 'mydata.txt'
+# data <- read.table("mydata.txt", header = F)
+
+# Convert the data to a form that can be used with a CNN
+x_train <- as.matrix(data.1[, -1])
+y_train <- as.matrix(data.1[, 1])
+
+# Reshape the data for use with a 1D CNN
+x_train <- array_reshape(x_train, c(nrow(x_train), ncol(x_train), 1))
+
+# Create the CNN model
+model <- keras_model_sequential() %>%
+  layer_conv_1d(filters = 64, kernel_size = 9, activation = "relu", input_shape = c(ncol(x_train), 1)) %>%
+  layer_max_pooling_1d(pool_size = 2) %>%
+  layer_flatten() %>%
+  layer_dense(units = 1, activation = "sigmoid") # try 'softmax' or 'elu', not bad idea to try all activations just because learning.
+
+# Compile the model
+model %>% compile(
+  optimizer = "adam",
+  loss = "binary_crossentropy",
+  metrics = c("accuracy")
+)
+
+# Train the model
+history <- model %>% fit(
+  x_train, y_train,
+  epochs = 10,
+  batch_size = 32)
+  
+  
