@@ -108,31 +108,32 @@ match(unique(data.rw.nms.1[,1]), unique(data.rw.nms.2[,1]))
 
 library(keras)
 
-# Load the training data from 'mydata.txt'
+
+##### Load the training data from 'mydata.txt'
 # data <- read.table("mydata.txt", header = F)
 
-# Convert the data to a form that can be used with a CNN
+##### Convert the data to a form that can be used with a CNN
 x_train <- as.matrix(data.1[, -1])
 y_train <- as.matrix(data.1[, 1])
 
-# Reshape the data for use with a 1D CNN
+##### Reshape the data for use with a 1D CNN
 x_train <- array_reshape(x_train, c(nrow(x_train), ncol(x_train), 1))
 
-# Create the CNN model
+##### Create the CNN model
 model <- keras_model_sequential() %>%
   layer_conv_1d(filters = 64, kernel_size = 9, activation = "relu", input_shape = c(ncol(x_train), 1)) %>%
   layer_max_pooling_1d(pool_size = 2) %>%
   layer_flatten() %>%
   layer_dense(units = 1, activation = "sigmoid") # try 'softmax' or 'elu', not bad idea to try all activations just because learning.
 
-# Compile the model
+##### Compile the model
 model %>% compile(
   optimizer = "adam",
   loss = "binary_crossentropy",
   metrics = c("accuracy")
 )
 
-# Train the model
+##### Train the model
 history <- model %>% fit(
   x_train, y_train,
   epochs = 100,
